@@ -2,115 +2,326 @@
 //
 
 #include <iostream>
-#include "Dice.h"
-#include "Boardr.h"
-#include "gamer.h"
-#include "Player.h"
+#include "Dice.cpp"
+#include "Board.cpp"
+#include "Player.cpp"
 #include <algorithm>
+#include <math.h>
 #include <vector>
+#include <string>
 using namespace std;
-
-void combinationUtil(int arr[], int data[],
-    int start, int end,
-    int index, int r, vector<vector<int>> &c, int &i);
-
-// The main function that prints
-// all combinations of size r
-// in arr[] of size n. This function
-// mainly uses combinationUtil()
-vector<vector<int>> printCombination(int arr[], int n, const int r)
-{
-    // A temporary array to store
-    // all combination one by one
-    int* data = new int[n];
-    vector<vector<int>> list (200, vector<int>(0,0));
-
-    // Print all combination using
-    // temporary array 'data[]'
-    int i = 0;
-    combinationUtil(arr, data, 0, n - 1, 0, r, list, i);
-    delete[] data;
-    return list;
+Dice d1(1);
+Dice d2(2);
+Dice d3(3);
+Dice d4(4);
+Dice d5(5);
+Dice d6(6);
+//calculates average value for a single roll
+//i.e. 1/6 * value if die was 1 + if die was 2 + 3...6
+double roll(Player &p, Board b, int index) {
+    vector<Dice> original = b.die;
+    int total = 0;
+    b.updateDie(d1, index);
+    total += b.coins[p.bestCoinWithDice(b)][0];
+    b.die = original;
+    b.updateDie(d2, index);
+    total += b.coins[p.bestCoinWithDice(b)][0];
+    b.die = original;
+    b.updateDie(d3, index);
+    total += b.coins[p.bestCoinWithDice(b)][0];
+    b.die = original;
+    b.updateDie(d4, index);
+    total += b.coins[p.bestCoinWithDice(b)][0];
+    b.die = original;
+    b.updateDie(d5, index);
+    total += b.coins[p.bestCoinWithDice(b)][0];
+    b.die = original;
+    b.updateDie(d6, index);
+    total += b.coins[p.bestCoinWithDice(b)][0];
+    //b.die = original;
+    return (double)(1.0 / 6.0) * (total);
 }
 
-/* arr[] ---> Input Array
-data[] ---> Temporary array to
-store current combination
-start & end ---> Starting and
-Ending indexes in arr[]
-index ---> Current index in data[]
-r ---> Size of a combination to be printed */
-void combinationUtil(int arr[], int data[],
-    int start, int end,
-    int index, int r, vector<vector<int>> &c, int& z)
-{
-    // Current combination is ready
-    // to be printed, print it
-    if (index == r)
-    {
-        for (int j = r-1; j >= 0; j--) {
-            c.at(z).push_back(data[j]);
+// returns a vector with the indices of the dice to roll and the expected value of rolling those dice given the current board state and one roll left
+vector<double> OneRollLeft(Player &p, Board b) {
+    double currentMaxValue = b.coins[p.bestCoinWithDice(b)][0];
+    vector<double> indices;
+    b.sortDice();
+    double value = 0;
+    for (int i = 0; i < 5; i++) {
+        value = roll(p, b, i);
+        if (value > currentMaxValue) {
+            currentMaxValue = value;
+            indices.clear();
+            indices.push_back(i);
         }
     }
-    if (c.at(z).size() != 0) {
-        z++;
+    value = 0;
+    Board BoardCopy = b;
+    // for each unique combination of two indices between 0 and 4, roll the dice at those indices and see if the expected value is higher than the current max value
+    for (int i = 0; i < 5; ++i) {
+        BoardCopy = b;
+        for (int j = 1 + i; j < 5; ++j) {
+            value = 0;
+            for (int k = 1; k < 7; ++k) {
+                Dice d(k);
+                BoardCopy.updateDie(d, i);
+                value += roll(p, BoardCopy, j);
+            }
+            if ((value / 6) > currentMaxValue) {
+                currentMaxValue = value / 6;
+                indices.clear();
+                indices.push_back(i);
+                indices.push_back(j);
+            }  
+        }
     }
-    // replace index with all possible
-    // elements. The condition "end-i+1 >= r-index"
-    // makes sure that including one element
-    // at index will make a combination with
-    // remaining elements at remaining positions
-    for (int i = start; i <= end &&
-        end - i + 1 >= r - index; i++)
-    {
-        data[index] = arr[i];
-        combinationUtil(arr, data, i + 1,
-            end, index + 1, r, c, z);
-    }
-}
-
-//goes through all possible dice combinations and returns a vector with the highest expected value and the indices of the dice to roll which get that expected value
-void bestExpectedValue(Player p, Board b, int NumberofRollsLeft, vector<int> &max) {
-    int currentValue = p.bestCoinWithDice(b);
-    if (NumberofRollsLeft == 0) {
-        return;
-    }
-    else if (NumberofRollsLeft == 1) {
-        //creates an array of ints of the die
-        int valueArray[5] = { b.getDiceatIndex(0).getDieValue(), b.getDiceatIndex(1).getDieValue(), b.getDiceatIndex(2).getDieValue(), b.getDiceatIndex(3).getDieValue(), b.getDiceatIndex(4).getDieValue() };
-        for (int i = 1; i <= 5; i++) {
-            vector<vector<int>> combonations = printCombination(valueArray, 5, i);
-            int counter = 0;
-            while (combonations.at(counter).size() > 0) {
-                for (int j = 0; j < combonations.at(counter).size(); j++) {
-                    Dice temp[5];
+    // for each combination of three indices between 0 and 4, roll the dice at those indices and see if the expected value is higher than the current max value
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 1 + i; j < 5; ++j) {
+            BoardCopy = b;
+            for (int k = 1 + j; k < 5; ++k) {
+                value = 0;
+                for (int l = 1; l < 7; ++l) {
+                    Dice d(l);
+                    BoardCopy.updateDie(d, i);
+                    for(int z = 1; z < 7; ++z) {
+                        Dice d(z);
+                        BoardCopy.updateDie(d, j);
+                        value += roll(p, BoardCopy, k);
+                        }
+                    }
+                    if ((value / 36) > currentMaxValue) {
+                        currentMaxValue = value / 36;
+                        indices.clear();
+                        indices.push_back(i);
+                        indices.push_back(j);
+                        indices.push_back(k);
+                    }
                 }
-
-                counter++;
+            }
+        }
+    // for each combination of four indices between 0 and 4, roll the dice at those indices and see if the expected value is higher than the current max value
+    /*for (int i = 0; i < 5; ++i) {
+        for (int j = 1 + i; j < 5; ++j) {
+            for (int k = 1 + j; k < 5; ++k) {
+                BoardCopy = b;
+                for (int l = 1 + k; l < 5; ++l) {
+                    value = 0;
+                    for (int m = 1; m < 7; ++m) {
+                        Dice d(m);
+                        BoardCopy.updateDie(d, i);
+                        for(int z = 1; z < 7; ++z) {
+                            Dice d(z);
+                            BoardCopy.updateDie(d, j);
+                            for(int y = 1; y < 7; ++y) {
+                                Dice d(y);
+                                BoardCopy.updateDie(d, k);
+                                value += roll(p, BoardCopy, l);
+                            }
+                        }
+                    }
+                    if ((value / 216) > currentMaxValue) {
+                            currentMaxValue = value / 216;
+                            indices.clear();
+                            indices.push_back(i);
+                            indices.push_back(j);
+                            indices.push_back(k);
+                            indices.push_back(l);
+                    }
+                }
+            }
+        }
+    }*/
+    indices.push_back(currentMaxValue);
+    return indices;
+}
+// returns a vector with the indices of the dice to roll and the expected value of rolling those dice given the current board state and two rolls left
+vector<double> TwoRollsLeft(Player &p, Board &b) {
+    double currentMaxValue = b.coins[p.bestCoinWithDice(b)][0];
+    vector<double> indices;
+    vector<double> temp;
+    double value = 0;
+    Board BoardCopy = b;
+    b.sortDice();
+    // from 0 to 4, update the die array at that index to be values 1-6, call OneRollLeft, add up the expected values, and divide by 6 to get the average expected value
+    for (int i = 0; i < 5; i++) {
+        value = 0;
+        BoardCopy = b;
+        for (int j = 1; j < 7; j++) {
+            Dice d(j);
+            BoardCopy.updateDie(d, i);
+            temp = OneRollLeft(p, BoardCopy);
+            value += temp[temp.size() - 1];
+        }
+        if ((value / 6) > currentMaxValue) {
+            currentMaxValue = value / 6;
+            indices.clear();
+            indices.push_back(i);
+        }
+    }
+    // for each unique combination of two indices between 0 and 4, update the die array at those indices to be values 1-6, call OneRollLeft, add up the expected values, and divide by 36 to get the average expected value
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 1 + i; j < 5; ++j) {
+            BoardCopy = b;
+            value = 0;
+            for (int k = 1; k < 7; ++k) {
+                Dice d(k);
+                BoardCopy.updateDie(d, i);
+                for(int z = 1; z < 7; ++z) {
+                    Dice d(z);
+                    BoardCopy.updateDie(d, j);
+                    temp = OneRollLeft(p, BoardCopy);
+                    value += temp[temp.size() - 1];
+                }
+            }
+            if ((value / 36) > currentMaxValue) {
+                currentMaxValue = value / 36;
+                indices.clear();
+                indices.push_back(i);
+                indices.push_back(j);
+            }  
+        }
+    }
+    // for each combination of three indices between 0 and 4, update the die array at those indices to be values 1-6, call OneRollLeft, add up the expected values, and divide by 216 to get the average expected value
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 1 + i; j < 5; ++j) {
+            for (int k = 1 + j; k < 5; ++k) {
+                BoardCopy = b;
+                value = 0;
+                for (int l = 1; l < 7; ++l) {
+                    Dice d(l);
+                    BoardCopy.updateDie(d, i);
+                    for(int z = 1; z < 7; ++z) {
+                        Dice d(z);
+                        BoardCopy.updateDie(d, j);
+                        for(int y = 1; y < 7; ++y) {
+                            Dice d(y);
+                            BoardCopy.updateDie(d, k);
+                            temp = OneRollLeft(p, BoardCopy);
+                            value += temp[temp.size() - 1];
+                        }
+                    }
+                }
+                if ((value / 216) > currentMaxValue) {
+                    currentMaxValue = value / 216;
+                    indices.clear();
+                    indices.push_back(i);
+                    indices.push_back(j);
+                    indices.push_back(k);
+                }
             }
         }
     }
-    return;
+    // for each combination of four indices between 0 and 4, update the die array at those indices to be values 1-6, call OneRollLeft, add up the expected values, and divide by 1296 to get the average expected value
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 1 + i; j < 5; ++j) {
+            for (int k = 1 + j; k < 5; ++k) {
+                for (int l = 1 + k; l < 5; ++l) {
+                    BoardCopy = b;
+                    value = 0;
+                    for (int m = 1; m < 7; ++m) {
+                        Dice d(m);
+                        BoardCopy.updateDie(d, i);
+                        for(int z = 1; z < 7; ++z) {
+                            Dice d(z);
+                            BoardCopy.updateDie(d, j);
+                            for(int y = 1; y < 7; ++y) {
+                                Dice d(y);
+                                BoardCopy.updateDie(d, k);
+                                for(int x = 1; x < 7; ++x) {
+                                    Dice d(x);
+                                    BoardCopy.updateDie(d, l);
+                                    temp = OneRollLeft(p, BoardCopy);
+                                    value += temp[temp.size() - 1];
+                                }
+                            }
+                        }
+                    }
+                    if ((value / 1296) > currentMaxValue) {
+                        currentMaxValue = value / 1296;
+                        indices.clear();
+                        indices.push_back(i);
+                        indices.push_back(j);
+                        indices.push_back(k);
+                        indices.push_back(l);
+                    }
+                }
+            }
+        }
+    }
+    indices.push_back(currentMaxValue);
+    return indices;
+}
+
+//goes through all possible dice combinations and returns a vector with the highest expected value and the indices of the dice to roll which get that expected value
+vector<double> bestExpectedValue(Player &p, Board &b, int NumberofRollsLeft) {
+    if (NumberofRollsLeft == 1) {
+        return OneRollLeft(p, b);
+    } else if (NumberofRollsLeft == 2) {
+        return TwoRollsLeft(p, b);
+    } else {
+        return OneRollLeft(p, b);
+    }
 }
 
 int main() {
-    int arr[5] = { 0,1,2,3,4 };
-    const int r = 3;
-    vector<vector<int>> combonations = printCombination(arr, 5, r);
-    return 0;
+    ios_base::sync_with_stdio(false);
+    Board b;
+    b.defualtBoard();
+    string name = "Matthew";
+    Player p1(name);
+    b.updateDie(d2, 0);
+    b.updateDie(d3, 1);
+    b.updateDie(d4, 2);
+    b.updateDie(d6, 3);
+    b.updateDie(d4, 4);
+    int rolls = 2;
+    vector<double> result = bestExpectedValue(p1, b, rolls);
+    for (int i = 0; i < result.size(); ++i) {
+        cout << result[i] << endl;
+    }
+    // create a REPL Loop while the input string is not "quit", it should take in a input string corresponding to a die array, as well as a number corresponding to the number of rolls left
+    // it should then print out the expected value of the best move
+    cout << "Welcome to yamslam, Please enter a die array and the number of rolls left in the form of a string, for example 12345 2 would be the die array 1, 2, 3, 4, 5 and 2 rolls left " << endl;
+    string input;
+    cin >> input;
+    while (input != "quit") {
+        // parse the input string into a vector of ints
+        vector<int> die;
+        for (int i = 0; i < input.length(); ++i) {
+            die.push_back(input[i] - '0');
+        }
+        // update the die array in the board object
+        for (int i = 0; i < die.size(); ++i) {
+            if (die[i] == 1) {
+                b.updateDie(d1, i);
+            } else if (die[i] == 2) {
+                b.updateDie(d2, i);
+            } else if (die[i] == 3) {
+                b.updateDie(d3, i);
+            } else if (die[i] == 4) {
+                b.updateDie(d4, i);
+            } else if (die[i] == 5) {
+                b.updateDie(d5, i);
+            } else if (die[i] == 6) {
+                b.updateDie(d6, i);
+            }
+        }
+        cout << "Input the number of rolls left" << endl;
+        cin >> rolls;
+        // call bestExpectedValue and print out the expected value
+        vector<double> result = bestExpectedValue(p1, b, rolls);
+        cout << "The expected value of the best move is: " << endl;
+        cout << result[result.size() - 1] << endl;
+        for (int i = 0; i < result.size(); ++i) {
+        cout << result[i] << " " << endl;
+        }
+        // get the next input string
+        cin >> input;
+    }
+    
     // first create board, set to defualt, then make players
     // decide which player goes first and go to the left
     // play until all chips are gone then print out score and delete any objects
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
-

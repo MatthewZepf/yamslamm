@@ -3,7 +3,7 @@
 #include <algorithm>
 
 void Board::defualtBoard() {
-	for (int i = 0; i < 7; i++) {
+	for (int i = 0; i < 8; i++) {
 		for (int j = 0; j < 4; j++) {
 			if (i == 0) {
 				coins[i][j] = 50;
@@ -26,6 +26,9 @@ void Board::defualtBoard() {
 			else if (i == 6) {
 				coins[i][j] = 5;
 			}
+			else if (i == 7) {
+				coins[i][j] = 0;
+			}
 		}
 	}
 }
@@ -41,7 +44,7 @@ void Board::updateCoins(int number) {
 }
 
 void Board::updateDie(Dice d, int index) {
-	die[index] = d;
+	die.at(index) = d;
 	return;
 }
 
@@ -69,7 +72,7 @@ void Board::rollDiceAt(int index) {
 }
 
 void Board::sortDice() {
-	sort(die, die + 5);
+	sort(die.begin(), die.end());
 }
 
 void Board::printDice() {
